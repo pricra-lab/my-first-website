@@ -1,0 +1,270 @@
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rock Sort: Igneous or Sedimentary?</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 1.25rem;
+      color: #202938;
+      background: #f3f6fa;
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+    }
+    main { max-width: 960px; margin: 0 auto; }
+    h1, h2 { line-height: 1.2; }
+    .intro, .status, .card, .bin {
+      background: #fff;
+      border: 2px solid #ccd5e0;
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    .status { margin: 1rem 0; }
+    .game {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      align-items: start;
+    }
+    .cards, .bin { min-height: 190px; }
+    .card {
+      margin: 0.6rem 0;
+      cursor: grab;
+      touch-action: manipulation;
+    }
+    .card:focus, button:focus, .bin:focus {
+      outline: 3px solid #2167c5;
+      outline-offset: 2px;
+    }
+    .card.selected { border-color: #2167c5; background: #eef5ff; }
+    .bin { transition: background-color 0.15s, border-color 0.15s; }
+    .bin.over { background: #edf7ff; border-color: #2167c5; }
+    .bin.correct { border-color: #25804a; }
+    .bin.incorrect { border-color: #b52b2b; }
+    .feedback { min-height: 1.5em; font-weight: 700; }
+    .explanation { margin-top: 0.4rem; font-size: 0.95rem; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      color: #fff;
+      background: #174f91;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover { background: #103d72; }
+    .card button { margin-top: 0.6rem; font-size: 0.9rem; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Rock Sort: Igneous or Sedimentary?</h1>
+  <section class="intro" aria-label="How to play">
+    <p>Sort each review card into the correct rock bin. Cards include rock examples, formation clues, and characteristics. Drag a card, or select it and choose a bin. You can also use the buttons on each card.</p>
+  </section>
+
+  <p class="status" aria-live="polite">
+    <strong>Score:</strong> <span id="score">0</span> of <span id="total">26</span>
+    <span id="progress"> · 0 placed</span>
+  </p>
+
+  <div class="game">
+    <section class="cards" id="cardPile" aria-label="Cards to sort">
+      <h2>Cards to Sort</h2>
+    </section>
+
+    <section class="bin" data-bin="igneous" tabindex="0" aria-label="Igneous Rock bin. Drop or place selected cards here.">
+      <h2>Igneous Rock</h2>
+      <p>Formed when molten rock cools and hardens.</p>
+      <div class="bin-cards"></div>
+    </section>
+
+    <section class="bin" data-bin="sedimentary" tabindex="0" aria-label="Sedimentary Rock bin. Drop or place selected cards here.">
+      <h2>Sedimentary Rock</h2>
+      <p>Often formed as sediments build up, compact, and cement together.</p>
+      <div class="bin-cards"></div>
+    </section>
+  </div>
+
+  <p class="feedback" id="feedback" aria-live="polite"></p>
+  <button type="button" id="reset">Reset Game</button>
+</main>
+
+<script>
+  const cardData = [
+    { text: "Granite", bin: "igneous", why: "Granite forms when magma cools slowly underground, allowing visible crystals to grow." },
+    { text: "Basalt", bin: "igneous", why: "Basalt forms when lava cools at or near Earth's surface." },
+    { text: "Obsidian", bin: "igneous", why: "Obsidian forms when lava cools so quickly that crystals do not have time to grow." },
+    { text: "Pumice", bin: "igneous", why: "Pumice forms from gas-rich lava that cools and traps many holes." },
+    { text: "Cooled magma or lava", bin: "igneous", why: "Magma or lava that cools and hardens forms igneous rock." },
+    { text: "Interlocking crystals", bin: "igneous", why: "Many igneous rocks contain crystals that grew as molten rock cooled." },
+    { text: "Forms as molten rock hardens", bin: "igneous", why: "Cooling and hardening molten rock is how igneous rocks form." },
+    { text: "May have a glassy texture", bin: "igneous", why: "Some rapidly cooled igneous rocks, such as obsidian, have a glassy texture." },
+    { text: "Sandstone", bin: "sedimentary", why: "Sandstone forms when sand grains are compacted and cemented together." },
+    { text: "Limestone", bin: "sedimentary", why: "Limestone commonly forms from the remains of organisms or minerals deposited in water." },
+    { text: "Shale", bin: "sedimentary", why: "Shale forms from tiny particles of mud and clay that settle and become compacted." },
+    { text: "Conglomerate", bin: "sedimentary", why: "Conglomerate contains rounded rock pieces held together by natural cement." },
+    { text: "Visible layers", bin: "sedimentary", why: "Sediments often build up in layers, which can remain visible in sedimentary rock." },
+    { text: "Fossils may be preserved", bin: "sedimentary", why: "Sedimentary layers can bury and preserve remains or traces of living things." },
+    { text: "Compaction and cementation", bin: "sedimentary", why: "Pressure compacts sediments, and minerals cement them together to form rock." },
+    { text: "Formed from sediments", bin: "sedimentary", why: "Sedimentary rocks form from deposited sediments or material that settles from water." },
+    { text: "Cools from melted rock, not pressed from pieces", bin: "igneous", why: "Igneous rock crystallizes from cooling magma or lava rather than being built from compacted fragments." },
+    { text: "Made of crystals that grew as it cooled slowly underground", bin: "igneous", why: "Slow cooling underground gives larger crystals time to grow, as in granite." },
+    { text: "Pressed and glued together, never melted", bin: "sedimentary", why: "Sedimentary rock forms when sediments are compacted and cemented together without melting." },
+    { text: "Often contains rounded grains or pieces of older rocks", bin: "sedimentary", why: "Weathered and eroded pieces of older rock become sediments that are later cemented together." },
+    { text: "Driven by energy from the sun", bin: "sedimentary", why: "The sun's energy powers weather, wind, and water that break down rock and move sediments, so sedimentary rock formation is driven by the sun." },
+    { text: "Weathering and erosion", bin: "sedimentary", why: "Weathering breaks rock into pieces and erosion carries them away to become sediments that form sedimentary rock." },
+    { text: "Process starts on Earth's surface", bin: "sedimentary", why: "Sedimentary rock formation begins at the surface where rock is weathered and sediments are deposited, unlike igneous rock, which forms from cooling magma or lava." },
+    { text: "Driven by energy from Earth's interior", bin: "igneous", why: "Heat from deep inside Earth melts rock into magma, so igneous rock formation is driven by Earth's internal energy." },
+    { text: "Process begins in Earth's mantle", bin: "igneous", why: "Igneous rock formation often begins when rock in or near the mantle melts to form magma, unlike sedimentary rock, which starts at the surface." },
+    { text: "Melting and cooling", bin: "igneous", why: "Rock melts into magma, then the magma or lava cools and hardens into igneous rock." }
+  ];
+
+  const pile = document.getElementById("cardPile");
+  const scoreEl = document.getElementById("score");
+  const totalEl = document.getElementById("total");
+  const progressEl = document.getElementById("progress");
+  const feedback = document.getElementById("feedback");
+  const bins = [...document.querySelectorAll(".bin")];
+  let score = 0;
+  let placed = 0;
+  let selectedCard = null;
+
+  totalEl.textContent = cardData.length;
+
+  function shuffle(list) {
+    const copy = [...list];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function makeCards() {
+    shuffle(cardData.map((item, index) => ({ item, index }))).forEach(({ item, index }) => {
+      const card = document.createElement("article");
+      card.className = "card";
+      card.draggable = true;
+      card.tabIndex = 0;
+      card.dataset.bin = item.bin;
+      card.dataset.placed = "false";
+      card.id = `card-${index}`;
+      card.setAttribute("aria-label", `${item.text}. Not yet sorted.`);
+      card.innerHTML = `<strong>${item.text}</strong><div class="result"></div>
+        <button type="button" class="choose">Select this card</button>`;
+      pile.appendChild(card);
+
+      card.addEventListener("dragstart", event => {
+        if (card.dataset.placed === "true") {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer.setData("text/plain", card.id);
+      });
+
+      card.addEventListener("click", event => {
+        if (event.target.closest("button")) return;
+        if (card.dataset.placed === "true") return;
+        selectCard(card);
+      });
+
+      card.querySelector(".choose").addEventListener("click", () => selectCard(card));
+
+      card.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          if (card.dataset.placed !== "true") selectCard(card);
+        }
+      });
+    });
+  }
+
+  function selectCard(card) {
+    if (selectedCard) selectedCard.classList.remove("selected");
+    selectedCard = card;
+    card.classList.add("selected");
+    feedback.textContent = `Selected "${card.querySelector("strong").textContent}". Choose a bin.`;
+  }
+
+  function placeCard(card, binName) {
+    if (!card || card.dataset.placed === "true") return;
+
+    const bin = bins.find(item => item.dataset.bin === binName);
+    const isCorrect = card.dataset.bin === binName;
+    const result = card.querySelector(".result");
+
+    card.dataset.placed = "true";
+    placed++;
+    card.draggable = false;
+    card.classList.remove("selected");
+    card.querySelector(".choose").remove();
+
+    if (isCorrect) {
+      score++;
+      result.innerHTML = `<p class="feedback">Correct!</p><p class="explanation">${cardData[Number(card.id.split("-")[1])].why}</p>`;
+      bin.classList.add("correct");
+      feedback.textContent = `Correct! ${card.querySelector("strong").textContent} belongs in ${binName === "igneous" ? "Igneous Rock" : "Sedimentary Rock"}.`;
+    } else {
+      result.innerHTML = `<p class="feedback">Not quite. Correct bin: ${card.dataset.bin === "igneous" ? "Igneous Rock" : "Sedimentary Rock"}.</p><p class="explanation">${cardData[Number(card.id.split("-")[1])].why}</p>`;
+      bin.classList.add("incorrect");
+      feedback.textContent = `Not quite. Review the explanation on the card, then keep sorting.`;
+    }
+
+    bin.querySelector(".bin-cards").appendChild(card);
+    scoreEl.textContent = score;
+    progressEl.textContent = ` · ${placed} placed`;
+    if (selectedCard === card) selectedCard = null;
+
+    if (placed === cardData.length) {
+      feedback.textContent = `Game complete! You scored ${score} of ${cardData.length}.`;
+    }
+  }
+
+  bins.forEach(bin => {
+    bin.addEventListener("dragover", event => {
+      event.preventDefault();
+      bin.classList.add("over");
+    });
+    bin.addEventListener("dragleave", () => bin.classList.remove("over"));
+    bin.addEventListener("drop", event => {
+      event.preventDefault();
+      bin.classList.remove("over");
+      const card = document.getElementById(event.dataTransfer.getData("text/plain"));
+      placeCard(card, bin.dataset.bin);
+    });
+    bin.addEventListener("click", () => {
+      if (selectedCard) placeCard(selectedCard, bin.dataset.bin);
+    });
+    bin.addEventListener("keydown", event => {
+      if ((event.key === "Enter" || event.key === " ") && selectedCard) {
+        event.preventDefault();
+        placeCard(selectedCard, bin.dataset.bin);
+      }
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    pile.innerHTML = "<h2>Cards to Sort</h2>";
+    bins.forEach(bin => {
+      bin.querySelector(".bin-cards").innerHTML = "";
+      bin.classList.remove("correct", "incorrect", "over");
+    });
+    score = 0;
+    placed = 0;
+    selectedCard = null;
+    scoreEl.textContent = "0";
+    progressEl.textContent = " · 0 placed";
+    feedback.textContent = "";
+    makeCards();
+  });
+
+  makeCards();
+</script>
+</body>
+</html>
+```
